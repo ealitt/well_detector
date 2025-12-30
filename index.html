@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Circle Detector</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'bg-primary': 'var(--bg-primary)',
+                        'bg-secondary': 'var(--bg-secondary)',
+                        'bg-tertiary': 'var(--bg-tertiary)',
+                        'text-primary': 'var(--text-primary)',
+                        'text-secondary': 'var(--text-secondary)',
+                        'accent': 'var(--accent)',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Theme CSS Variables */
+        :root {
+            /* Dark theme (default) */
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-tertiary: #0a0a1a;
+            --text-primary: #eee;
+            --text-secondary: #888;
+            --text-muted: #666;
+            --accent: #00d9ff;
+            --accent-success: #00ff88;
+            --border-color: #333;
+            --border-color-light: #444;
+            --overlay-bg: rgba(0, 0, 0, 0.7);
+            --shadow-color: rgba(0, 0, 0, 0.4);
+        }
+
+        :root.light-mode {
+            /* Light theme */
+            --bg-primary: #f5f5f5;
+            --bg-secondary: #ffffff;
+            --bg-tertiary: #e8e8e8;
+            --text-primary: #222;
+            --text-secondary: #555;
+            --text-muted: #888;
+            --accent: #0088cc;
+            --accent-success: #00aa44;
+            --border-color: #ccc;
+            --border-color-light: #ddd;
+            --overlay-bg: rgba(0, 0, 0, 0.5);
+            --shadow-color: rgba(0, 0, 0, 0.15);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Full-screen drop zone for startup */
+        .startup-drop-zone {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-primary);
+            z-index: 100;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .startup-drop-zone.drag-over {
+            background: rgba(0, 217, 255, 0.1);
+        }
+        :root.light-mode .startup-drop-zone.drag-over {
+            background: rgba(0, 136, 204, 0.1);
+        }
+
+        .startup-drop-zone.hidden {
+            display: none;
+        }
+
+        .startup-content {
+            text-align: center;
+        }
+
+        .startup-content h1 {
+            color: var(--accent);
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .startup-content p {
+            color: var(--text-secondary);
+            font-size: 18px;
+            margin-bottom: 30px;
+        }
+
+        .startup-drop-area {
+            border: 3px dashed var(--border-color-light);
+            border-radius: 20px;
+            padding: 60px 100px;
+            transition: all 0.3s;
+        }
+
+        .startup-drop-zone.drag-over .startup-drop-area {
+            border-color: var(--accent);
+            background: rgba(0, 217, 255, 0.05);
+        }
+
+        .startup-drop-area span {
+            font-size: 24px;
+            color: var(--text-muted);
+        }
+
+        .startup-status {
+            margin-top: 30px;
+            font-size: 14px;
+            color: var(--text-secondary);
+        }
+
+        .startup-status span {
+            color: var(--accent);
+        }
+
+        .startup-theme-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            margin: 0;
+            color: var(--accent);
+            font-size: 24px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .header-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .settings-btn,
+        .theme-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            padding: 4px;
+            font-size: 20px;
+            transition: color 0.2s;
+            line-height: 1;
+        }
+
+        .settings-btn:hover,
+        .theme-btn:hover {
+            color: var(--accent);
+        }
+
+        .header-drop-zone {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border: 2px dashed var(--border-color-light);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-left: auto;
+        }
+
+        .header-drop-zone:hover {
+            border-color: var(--accent);
+            background: rgba(0, 217, 255, 0.1);
+        }
+
+        .header-drop-zone.drag-over {
+            border-color: var(--accent);
+            background: rgba(0, 217, 255, 0.2);
+        }
+
+        .header-drop-zone .drop-icon {
+            font-size: 18px;
+            color: var(--text-secondary);
+            font-weight: bold;
+        }
+
+        .header-drop-zone .drop-text {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .header-drop-zone:hover .drop-icon,
+        .header-drop-zone:hover .drop-text {
+            color: var(--accent);
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 15px;
+            font-size: 12px;
+        }
+
+        .status-item {
+            color: var(--text-secondary);
+        }
+
+        .status-item span {
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        .status-item.success span {
+            color: var(--accent-success);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .canvas-box {
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            padding: 12px;
+            overflow: hidden;
+            min-width: 0;
+        }
+
+        .canvas-box-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .canvas-box h3 {
+            color: var(--accent);
+            font-size: 11px;
+            text-transform: uppercase;
+            margin: 0;
+        }
+
+        .canvas-wrapper {
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            display: flex;
+            align-items: flex-start;
+            justify-content: flex-start;
+            height: 400px;
+            width: 100%;
+            max-width: 100%;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .canvas-wrapper.zoomable {
+            cursor: crosshair;
+        }
+
+        canvas {
+            display: block;
+            max-width: 100%;
+            max-height: 400px;
+            object-fit: contain;
+        }
+
+        .canvas-wrapper.zoomed-in {
+            cursor: grab;
+            overflow: auto;
+        }
+
+        .canvas-wrapper.zoomed-in canvas {
+            max-width: none;
+            max-height: none;
+        }
+
+        .sample-indicator {
+            position: absolute;
+            border: 2px solid #00d9ff;
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.1s;
+        }
+
+        .sample-indicator.visible {
+            opacity: 1;
+        }
+
+        .canvas-with-panel {
+            display: flex;
+            gap: 10px;
+            overflow: hidden;
+        }
+
+        .canvas-with-panel .canvas-wrapper {
+            flex: 1;
+            min-width: 0;
+        }
+
+        /* Side Panel Styles */
+        .side-panel {
+            width: 140px;
+            flex-shrink: 0;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .panel-section {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        .panel-section:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .panel-header {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+
+        .panel-content {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .panel-stat {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .panel-label {
+            font-size: 9px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .panel-value {
+            font-size: 12px;
+            color: var(--accent);
+            font-weight: bold;
+            font-family: monospace;
+        }
+
+        .panel-control {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .panel-control label {
+            font-size: 9px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            min-width: 45px;
+        }
+
+        .panel-control input[type="number"] {
+            width: 45px;
+            padding: 3px 4px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--bg-secondary);
+            color: var(--accent);
+            font-size: 11px;
+            text-align: center;
+        }
+
+        .panel-control input[type="number"]:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .panel-control .unit {
+            font-size: 9px;
+            color: var(--text-muted);
+        }
+
+        .zoom-controls {
+            display: flex;
+            gap: 4px;
+            margin-top: 4px;
+        }
+
+        .zoom-btn {
+            flex: 1;
+            padding: 4px 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .zoom-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .keyboard-hint {
+            font-size: 8px;
+            color: var(--text-muted);
+            text-align: center;
+            margin-top: 4px;
+        }
+
+        /* Adjustor Panel */
+        .adjustor-panel {
+            width: 160px;
+            flex-shrink: 0;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .slider-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .slider-row label {
+            font-size: 9px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .slider-row label span {
+            color: var(--accent);
+        }
+
+        .slider-row input[type="range"] {
+            width: 100%;
+            height: 4px;
+            -webkit-appearance: none;
+            background: var(--border-color);
+            border-radius: 2px;
+        }
+
+        .slider-row input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .input-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .input-row label {
+            font-size: 9px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            flex: 1;
+        }
+
+        .input-row input[type="number"] {
+            width: 50px;
+            padding: 3px 4px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--bg-secondary);
+            color: var(--accent);
+            font-size: 11px;
+            text-align: center;
+        }
+
+        .input-row input[type="number"]:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .input-row .unit {
+            font-size: 9px;
+            color: var(--text-muted);
+        }
+
+        /* Toggle switch */
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .toggle-row label {
+            font-size: 9px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 36px;
+            height: 20px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--border-color);
+            transition: 0.3s;
+            border-radius: 20px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 14px;
+            width: 14px;
+            left: 3px;
+            bottom: 3px;
+            background-color: var(--text-secondary);
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background-color: var(--accent);
+        }
+
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(16px);
+            background-color: #fff;
+        }
+
+        /* Stats Panel */
+        .stats-panel {
+            grid-column: 1 / -1;
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            padding: 12px;
+            max-height: 250px;
+            overflow: auto;
+        }
+
+        .stats-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .stats-header h3 {
+            color: var(--accent);
+            font-size: 11px;
+            text-transform: uppercase;
+            margin: 0;
+        }
+
+        .stats-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .sort-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sort-control label {
+            font-size: 10px;
+            color: var(--text-secondary);
+        }
+
+        .sort-control select {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            cursor: pointer;
+        }
+
+        .sort-control select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .export-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary {
+            background: var(--border-color);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border-color-light);
+        }
+
+        .btn-secondary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #0a0a1a;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        th, td {
+            padding: 6px 10px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            font-weight: normal;
+            text-transform: uppercase;
+            font-size: 10px;
+            position: sticky;
+            top: 0;
+        }
+
+        td {
+            color: var(--text-primary);
+        }
+
+        tr:hover td {
+            background: rgba(0, 217, 255, 0.1);
+        }
+        :root.light-mode tr:hover td {
+            background: rgba(0, 136, 204, 0.1);
+        }
+
+        .color-dot {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+
+        .no-data {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 20px;
+        }
+
+        tr.highlight td {
+            background: rgba(0, 217, 255, 0.3) !important;
+        }
+        :root.light-mode tr.highlight td {
+            background: rgba(0, 136, 204, 0.25) !important;
+        }
+
+        tr[data-circle-id] {
+            cursor: pointer;
+        }
+
+        tr[data-circle-id]:hover td {
+            background: rgba(0, 217, 255, 0.15);
+        }
+        :root.light-mode tr[data-circle-id]:hover td {
+            background: rgba(0, 136, 204, 0.15);
+        }
+
+        /* Stats and Graph Container */
+        .stats-graph-container {
+            grid-column: 1 / -1;
+            display: flex;
+            gap: 12px;
+            align-items: stretch;
+            min-height: 350px;
+            max-height: 450px;
+        }
+
+        .stats-graph-container .stats-panel {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            max-height: none;
+            overflow: hidden;
+        }
+
+        .stats-graph-container .stats-panel .stats-header {
+            flex-shrink: 0;
+        }
+
+        .stats-graph-container .stats-panel #statsTable {
+            flex: 1;
+            overflow-y: auto;
+            display: block;
+        }
+
+        /* Graph Panel Styles */
+        .graph-panel {
+            width: 520px;
+            flex-shrink: 0;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        .graph-panel .canvas-box-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            flex-shrink: 0;
+        }
+
+        .graph-panel .canvas-box-header h3 {
+            margin: 0;
+            font-size: 14px;
+        }
+
+        .btn-small {
+            padding: 4px 10px;
+            font-size: 11px;
+        }
+
+        .graph-content {
+            display: flex;
+            gap: 10px;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+        }
+
+        #graphCanvas {
+            background: #fff;
+            border-radius: 4px;
+            flex-shrink: 0;
+            max-width: 100%;
+            max-height: 100%;
+        }
+
+        .graph-controls {
+            width: 150px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex-shrink: 0;
+            overflow-y: auto;
+            font-size: 10px;
+        }
+
+        .graph-controls .panel-section {
+            padding-bottom: 6px;
+        }
+
+        .graph-controls .panel-header {
+            margin-bottom: 4px;
+            font-size: 9px;
+        }
+
+        .graph-controls .toggle-row {
+            margin-bottom: 4px;
+        }
+
+        .graph-controls .toggle-row label {
+            font-size: 8px;
+        }
+
+        .graph-select {
+            width: 100%;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 6px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+
+        .graph-select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .x-values-input {
+            width: 100%;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--accent);
+            padding: 6px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-family: monospace;
+            resize: none;
+        }
+
+        .x-values-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .fit-results {
+            font-family: monospace;
+            font-size: 11px;
+            color: var(--accent);
+            line-height: 1.5;
+        }
+
+        .fit-results .equation {
+            color: var(--accent-success);
+            font-weight: bold;
+        }
+
+        .fit-results .r2 {
+            color: #ffaa00;
+        }
+
+        /* Responsive Breakpoints */
+        @media (max-width: 1400px) {
+            .stats-graph-container {
+                flex-direction: column;
+                max-height: none;
+                min-height: auto;
+            }
+            .stats-graph-container .stats-panel {
+                min-height: 250px;
+                max-height: 300px;
+            }
+            .graph-panel {
+                width: 100%;
+                min-height: 380px;
+            }
+            .graph-content {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+            #graphCanvas {
+                flex: 1;
+                min-width: 300px;
+            }
+            .graph-controls {
+                width: 100%;
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 12px;
+            }
+            .graph-controls .panel-section {
+                flex: 1;
+                min-width: 120px;
+                max-width: 200px;
+            }
+        }
+
+        @media (max-width: 1000px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            .canvas-with-panel {
+                flex-direction: column;
+            }
+            .side-panel, .adjustor-panel {
+                width: 100%;
+                flex-direction: row;
+                flex-wrap: wrap;
+                gap: 16px;
+                padding: 12px;
+            }
+            .side-panel .panel-section,
+            .adjustor-panel .slider-row,
+            .adjustor-panel .input-row,
+            .adjustor-panel .toggle-row {
+                flex: 1;
+                min-width: 140px;
+            }
+            .stats-header {
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+            }
+            .stats-controls {
+                width: 100%;
+                flex-wrap: wrap;
+            }
+            .export-buttons {
+                flex-wrap: wrap;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            .header-row {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+            .header-drop-zone {
+                margin-left: 0;
+                order: 3;
+                flex: 1 1 100%;
+                justify-content: center;
+            }
+            .status-bar {
+                flex-wrap: wrap;
+                gap: 8px 16px;
+            }
+            .canvas-wrapper {
+                height: 300px;
+            }
+            canvas {
+                max-height: 300px;
+            }
+            .graph-panel {
+                min-height: 450px;
+            }
+            .graph-content {
+                flex-direction: column;
+            }
+            #graphCanvas {
+                width: 100%;
+                min-width: auto;
+                height: 250px;
+            }
+            .graph-controls {
+                flex-direction: column;
+                width: 100%;
+            }
+            .graph-controls .panel-section {
+                max-width: none;
+            }
+            .sort-control {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 4px;
+            }
+            .sort-control select {
+                width: 100%;
+            }
+            table {
+                font-size: 11px;
+            }
+            th, td {
+                padding: 4px 6px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .startup-content h1 {
+                font-size: 32px;
+            }
+            .startup-drop-area {
+                padding: 40px 20px;
+            }
+            .startup-drop-area span {
+                font-size: 16px;
+            }
+            h1 {
+                font-size: 18px;
+            }
+            .btn {
+                padding: 5px 8px;
+                font-size: 10px;
+            }
+            .canvas-wrapper {
+                height: 250px;
+            }
+            canvas {
+                max-height: 250px;
+            }
+            #graphCanvas {
+                height: 200px;
+            }
+        }
+
+        /* Modal Styles */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--overlay-bg);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-overlay.visible {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 24px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px var(--shadow-color);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-header h2 {
+            color: var(--accent);
+            font-size: 18px;
+            margin: 0;
+        }
+
+        .modal-close {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 24px;
+            cursor: pointer;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: var(--text-primary);
+        }
+
+        .settings-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .setting-item {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .setting-item label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .setting-item input,
+        .setting-item select {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .setting-item input:focus,
+        .setting-item select:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+            margin-top: 24px;
+            padding-top: 16px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .modal-footer .btn {
+            min-width: 100px;
+            padding: 10px 20px;
+        }
+
+        .settings-note {
+            grid-column: 1 / -1;
+            font-size: 11px;
+            color: var(--text-muted);
+            font-style: italic;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Full-screen startup drop zone -->
+    <div class="startup-drop-zone" id="startupDropZone">
+        <input type="file" id="fileInput" accept=".tif,.tiff,.png,.jpg,.jpeg">
+        <button class="theme-btn startup-theme-btn" id="startupThemeBtn" title="Toggle Light/Dark Mode">&#9788;</button>
+        <div class="startup-content">
+            <h1>Circle Detector</h1>
+            <p>Analyze circular features in 16-bit TIFF images</p>
+            <div class="startup-drop-area">
+                <span>Drop image here or click to browse</span>
+            </div>
+            <div class="startup-status">
+                Status: <span id="startupStatus">Loading Python runtime...</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main app container (hidden until image loaded) -->
+    <div class="container" id="appContainer" style="display: none;">
+        <div class="header-row">
+            <h1>Circle Detector</h1>
+            <div class="header-drop-zone" id="headerDropZone" title="Drop new image here">
+                <span class="drop-icon">+</span>
+                <span class="drop-text">New Image</span>
+            </div>
+            <button class="theme-btn" id="themeBtn" title="Toggle Light/Dark Mode">&#9788;</button>
+            <button class="settings-btn" id="settingsBtn" title="Settings">&#9881;</button>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-item">Status: <span id="status">Load an image</span></div>
+            <div class="status-item success">Circles: <span id="circleCount">0</span></div>
+            <div class="status-item">Time: <span id="processTime">0</span>ms</div>
+            <div class="status-item">FPS: <span id="fps">-</span></div>
+        </div>
+
+        <div class="main-content">
+            <!-- Original Image with Sample Info Panel -->
+            <div class="canvas-box">
+                <div class="canvas-box-header">
+                    <h3>Original</h3>
+                </div>
+                <div class="canvas-with-panel">
+                    <div class="side-panel" id="hoverPanel">
+                        <div class="panel-section">
+                            <div class="panel-header">Sample Info</div>
+                            <div class="panel-content">
+                                <div class="panel-stat">
+                                    <span class="panel-label">Position</span>
+                                    <span class="panel-value" id="hoverPos">-</span>
+                                </div>
+                                <div class="panel-stat">
+                                    <span class="panel-label">Mean</span>
+                                    <span class="panel-value" id="hoverMean">-</span>
+                                </div>
+                                <div class="panel-stat">
+                                    <span class="panel-label">Min / Max</span>
+                                    <span class="panel-value" id="hoverMinMax">-</span>
+                                </div>
+                                <div class="panel-stat">
+                                    <span class="panel-label">Std Dev</span>
+                                    <span class="panel-value" id="hoverStdDev">-</span>
+                                </div>
+                                <div class="panel-stat">
+                                    <span class="panel-label">Pixels</span>
+                                    <span class="panel-value" id="hoverPixels">-</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="panel-section">
+                            <div class="panel-header">Sample Size</div>
+                            <div class="panel-control">
+                                <label>Diameter</label>
+                                <input type="number" id="sampleDiameter" min="1" max="100" value="10">
+                                <span class="unit">px</span>
+                            </div>
+                        </div>
+                        <div class="panel-section">
+                            <div class="panel-header">Zoom</div>
+                            <div class="panel-control">
+                                <label>Level</label>
+                                <input type="number" id="zoomLevel" min="100" max="800" value="100" step="10">
+                                <span class="unit">%</span>
+                            </div>
+                            <div class="zoom-controls">
+                                <button class="zoom-btn" id="zoomOutBtn">−</button>
+                                <button class="zoom-btn" id="zoomResetBtn">0</button>
+                                <button class="zoom-btn" id="zoomInBtn">+</button>
+                            </div>
+                            <div class="keyboard-hint">Keys: + / − / 0</div>
+                        </div>
+                    </div>
+                    <div class="canvas-wrapper zoomable" id="originalWrapper">
+                        <canvas id="originalCanvas"></canvas>
+                        <div class="sample-indicator" id="sampleIndicator"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detected Circles with Adjustors Panel -->
+            <div class="canvas-box">
+                <div class="canvas-box-header">
+                    <h3>Detected Circles</h3>
+                </div>
+                <div class="canvas-with-panel">
+                    <div class="canvas-wrapper" id="resultWrapper">
+                        <canvas id="resultCanvas"></canvas>
+                    </div>
+                    <div class="adjustor-panel">
+                        <div class="panel-header">Image Adjustments</div>
+                        <div class="slider-row">
+                            <label>Sensitivity <span id="sensitivityVal">50</span></label>
+                            <input type="range" id="sensitivity" min="1" max="100" value="50">
+                        </div>
+                        <div class="slider-row">
+                            <label>Brightness <span id="brightnessVal">0</span></label>
+                            <input type="range" id="brightness" min="-100" max="100" value="0">
+                        </div>
+                        <div class="slider-row">
+                            <label>Contrast <span id="contrastVal">100</span></label>
+                            <input type="range" id="contrast" min="50" max="200" value="100">
+                        </div>
+                        <div class="slider-row">
+                            <label>Min Size <span id="minSizeVal">10</span></label>
+                            <input type="range" id="minSize" min="1" max="100" value="10">
+                        </div>
+                        <div class="input-row">
+                            <label>Max Circles</label>
+                            <input type="number" id="maxCircles" min="1" max="999" placeholder="All">
+                        </div>
+                        <div class="input-row">
+                            <label>Stats Area</label>
+                            <input type="number" id="statsAreaPct" min="1" max="100" value="50">
+                            <span class="unit">%</span>
+                        </div>
+                        <div class="toggle-row">
+                            <label>Show ROI</label>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="showRoiToggle">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistics and Graph Container -->
+            <div class="stats-graph-container">
+                <div class="stats-panel">
+                    <div class="stats-header">
+                        <h3>Circle Statistics</h3>
+                        <div class="stats-controls">
+                            <div class="sort-control">
+                                <label>Sort:</label>
+                                <select id="sortBy">
+                                    <option value="brightness-desc">Brightness (High → Low)</option>
+                                    <option value="brightness-asc">Brightness (Low → High)</option>
+                                    <option value="area-desc">Area (Large → Small)</option>
+                                    <option value="area-asc">Area (Small → Large)</option>
+                                    <option value="diameter-desc">Diameter (Large → Small)</option>
+                                    <option value="diameter-asc">Diameter (Small → Large)</option>
+                                    <option value="circularity-desc">Circularity (High → Low)</option>
+                                    <option value="circularity-asc">Circularity (Low → High)</option>
+                                    <option value="x-asc">Position X (Left → Right)</option>
+                                    <option value="y-asc">Position Y (Top → Bottom)</option>
+                                </select>
+                            </div>
+                            <div class="export-buttons">
+                                <button class="btn btn-primary" id="generatePlotBtn" disabled>Generate Plot</button>
+                                <button class="btn btn-secondary" id="downloadBtn" disabled>Download PNG</button>
+                                <button class="btn btn-secondary" id="exportExcelBtn" disabled>Export Excel</button>
+                            </div>
+                        </div>
+                    </div>
+                    <table id="statsTable">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Center (X, Y)</th>
+                                <th>Mean Value</th>
+                                <th>Diameter</th>
+                                <th>Area (px)</th>
+                                <th>Circularity</th>
+                                <th>Min / Max Value</th>
+                                <th>Std Dev</th>
+                            </tr>
+                        </thead>
+                        <tbody id="statsBody">
+                            <tr>
+                                <td colspan="8" class="no-data">No circles detected</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Analysis Graph Panel -->
+                <div class="graph-panel" style="display: none;">
+                    <div class="canvas-box-header">
+                        <h3>Analysis Graph</h3>
+                        <button class="btn btn-secondary btn-small" id="closeGraphBtn">Close</button>
+                    </div>
+                    <div class="graph-content">
+                        <canvas id="graphCanvas" width="340" height="280"></canvas>
+                        <div class="graph-controls">
+                            <div class="panel-section">
+                                <div class="panel-header">Target Type</div>
+                                <select id="targetType" class="graph-select">
+                                    <option value="none">None</option>
+                                    <option value="concentration">Concentration</option>
+                                    <option value="depth">Depth</option>
+                                </select>
+                            </div>
+                            <div class="panel-section">
+                                <div class="panel-header">X-Axis Values</div>
+                                <textarea id="xAxisValues" class="x-values-input" rows="2" placeholder="1, 3, 10, 30..."></textarea>
+                                <div class="toggle-row">
+                                    <label>Reverse Order</label>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="reverseXAxis">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="panel-section">
+                                <div class="panel-header">Display</div>
+                                <div class="toggle-row">
+                                    <label>Trendline</label>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="showTrendline" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <div class="toggle-row">
+                                    <label>Equation</label>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="showEquation" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <div class="toggle-row">
+                                    <label>R² Value</label>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="showR2" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="panel-section">
+                                <div class="panel-header">Fit Results</div>
+                                <div class="fit-results" id="fitResults">
+                                    <span class="panel-value">-</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Default Settings</h2>
+                <button class="modal-close" id="closeSettings">&times;</button>
+            </div>
+            <div class="settings-grid">
+                <div class="setting-item">
+                    <label>Sensitivity (1-100)</label>
+                    <input type="number" id="defaultSensitivity" min="1" max="100" value="50">
+                </div>
+                <div class="setting-item">
+                    <label>Brightness (-100 to 100)</label>
+                    <input type="number" id="defaultBrightness" min="-100" max="100" value="0">
+                </div>
+                <div class="setting-item">
+                    <label>Contrast (50-200)</label>
+                    <input type="number" id="defaultContrast" min="50" max="200" value="100">
+                </div>
+                <div class="setting-item">
+                    <label>Min Size (1-100)</label>
+                    <input type="number" id="defaultMinSize" min="1" max="100" value="10">
+                </div>
+                <div class="setting-item">
+                    <label>Max Circles (empty = All)</label>
+                    <input type="number" id="defaultMaxCircles" min="1" max="999" placeholder="All">
+                </div>
+                <div class="setting-item">
+                    <label>Stats Area %</label>
+                    <input type="number" id="defaultStatsArea" min="1" max="100" value="50">
+                </div>
+                <div class="setting-item">
+                    <label>Sample Diameter (px)</label>
+                    <input type="number" id="defaultSampleDiameter" min="1" max="100" value="10">
+                </div>
+                <div class="setting-item">
+                    <label>Default Sort</label>
+                    <select id="defaultSortBy">
+                        <option value="area-desc">Area (Large to Small)</option>
+                        <option value="area-asc">Area (Small to Large)</option>
+                        <option value="brightness-desc">Brightness (High to Low)</option>
+                        <option value="brightness-asc">Brightness (Low to High)</option>
+                        <option value="diameter-desc">Diameter (Large to Small)</option>
+                        <option value="diameter-asc">Diameter (Small to Large)</option>
+                        <option value="circularity-desc">Circularity (High to Low)</option>
+                        <option value="circularity-asc">Circularity (Low to High)</option>
+                        <option value="x-asc">Position X (Left to Right)</option>
+                        <option value="y-asc">Position Y (Top to Bottom)</option>
+                    </select>
+                </div>
+                <p class="settings-note">Settings are saved to your browser and will be restored on next visit.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="resetDefaults">Reset to Defaults</button>
+                <button class="btn btn-primary" id="saveSettings">Save Settings</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="./dist/app.js"></script>
+</body>
+
+</html>
