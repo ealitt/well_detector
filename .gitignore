@@ -1,5 +1,6 @@
 # Dependencies
 node_modules/
+_site/
 
 # Build output (uncomment if you want to exclude from repo)
 # dist/

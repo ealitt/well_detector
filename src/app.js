@@ -829,12 +829,12 @@ async function initPyodide() {
         // Initialize Pyodide
         pyodide = await loadPyodide();
 
-        // Install required packages
+        // Load Pyodide's compiled NumPy build, then install a pure-Python
+        // tifffile release compatible with this pinned Pyodide runtime.
         startupStatus.textContent = 'Installing Python packages...';
-        await pyodide.loadPackage('micropip');
+        await pyodide.loadPackage(['numpy', 'micropip']);
         const micropip = pyodide.pyimport('micropip');
-        await micropip.install('tifffile');
-        await micropip.install('numpy');
+        await micropip.install('tifffile==2024.8.30');
 
         pyodideReady = true;
         console.log('Pyodide initialized with tifffile and numpy');

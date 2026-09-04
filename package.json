@@ -6,7 +6,8 @@
     "dev": "bun run --hot index.html",
     "serve": "bun --hot server.js",
     "detect": "bun run src/detect.js",
-    "build": "bun build ./src/app.js --outdir ./dist --minify --target browser"
+    "build": "bun build ./src/app.js --outdir ./dist --minify --target browser",
+    "build:pages": "bun run build && mkdir -p ./_site/dist && cp ./index.html ./_site/index.html && cp ./dist/app.js ./_site/dist/app.js && touch ./_site/.nojekyll"
   },
   "dependencies": {
     "exceljs": "^4.4.0",
