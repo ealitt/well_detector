@@ -4,6 +4,14 @@
 import ExcelJS from 'exceljs';
 import UTIF from 'utif';
 
+const TIFF_EXTENSIONS = new Set(['tif', 'tiff']);
+const HEIC_EXTENSIONS = new Set(['heic', 'heif']);
+const KNOWN_IMAGE_EXTENSIONS = new Set([
+    ...TIFF_EXTENSIONS,
+    ...HEIC_EXTENSIONS,
+    'png', 'apng', 'jpg', 'jpeg', 'jfif', 'bmp', 'dib', 'gif', 'webp', 'avif', 'ico'
+]);
+
 // Pyodide globals for accurate pixel value analysis
 let pyodide = null;
 let pyodideReady = false;
@@ -926,8 +934,11 @@ result
 // Load file
 async function loadFile(file) {
     const ext = file.name.toLowerCase().split('.').pop();
-    if (!['tif', 'tiff', 'png', 'jpg', 'jpeg'].includes(ext)) {
-        statusEl.textContent = 'Unsupported format';
+    const isTiff = TIFF_EXTENSIONS.has(ext) || ['image/tiff', 'image/x-tiff'].includes(file.type);
+    const isRecognizedImage = file.type.startsWith('image/') || KNOWN_IMAGE_EXTENSIONS.has(ext);
+
+    if (!isRecognizedImage) {
+        statusEl.textContent = 'Unsupported format. Please choose an image file.';
         return;
     }
 
@@ -938,16 +949,18 @@ async function loadFile(file) {
     statusEl.textContent = 'Loading...';
 
     try {
-        if (ext === 'tif' || ext === 'tiff') {
+        if (isTiff) {
             await loadTiff(file);
         } else {
-            await loadImage(file);
+            await loadImage(file, ext);
         }
 
         drawOriginal();
 
         // Update status based on Python availability
-        if (pythonTiffLoaded) {
+        if (!isTiff) {
+            statusEl.textContent = `Loaded ${width}x${height} (${bitDepth}-bit)`;
+        } else if (pythonTiffLoaded) {
             statusEl.textContent = `Loaded ${width}x${height} (${bitDepth}-bit) - Python ready`;
         } else if (pyodideReady) {
             statusEl.textContent = `Loaded ${width}x${height} (${bitDepth}-bit) - Python loading...`;
@@ -1055,12 +1068,35 @@ print(f"Python loaded TIFF: {tiff_width}x{tiff_height}, dtype={tiff_gray.dtype},
     }
 }
 
-async function loadImage(file) {
+async function loadImage(file, ext) {
     pythonTiffLoaded = false;  // Non-TIFF images don't use Python
     tiffArrayBuffer = null;
+
+    try {
+        await decodeBrowserImage(file);
+    } catch (nativeError) {
+        const isHeic = HEIC_EXTENSIONS.has(ext) || ['image/heic', 'image/heif'].includes(file.type);
+        if (!isHeic) throw nativeError;
+
+        statusEl.textContent = 'Converting HEIC/HEIF image...';
+        try {
+            const { default: heic2any } = await import('heic2any');
+            const converted = await heic2any({ blob: file, toType: 'image/png' });
+            const convertedBlob = Array.isArray(converted) ? converted[0] : converted;
+            await decodeBrowserImage(convertedBlob);
+        } catch (conversionError) {
+            console.error('HEIC/HEIF conversion failed:', conversionError);
+            throw new Error('Could not decode this HEIC/HEIF image');
+        }
+    }
+}
+
+function decodeBrowserImage(blob) {
     return new Promise((resolve, reject) => {
         const img = new Image();
+        const objectUrl = URL.createObjectURL(blob);
         img.onload = () => {
+            URL.revokeObjectURL(objectUrl);
             width = img.width;
             height = img.height;
             is16Bit = false;
@@ -1087,8 +1123,11 @@ async function loadImage(file) {
             processedGray = new Uint8Array(originalGray);
             resolve();
         };
-        img.onerror = reject;
-        img.src = URL.createObjectURL(file);
+        img.onerror = () => {
+            URL.revokeObjectURL(objectUrl);
+            reject(new Error('The browser could not decode this image'));
+        };
+        img.src = objectUrl;
     });
 }
 

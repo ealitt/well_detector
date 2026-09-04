@@ -5,7 +5,8 @@ A circle detection application that processes 16-bit TIFF images, preserves raw 
 ## Features
 
 - Load 8-bit and 16-bit TIFF images
-- Support for PNG and JPEG formats
+- Support for PNG, JPEG/JFIF, BMP/DIB, GIF, WebP, AVIF, APNG, ICO, HEIC, and HEIF
+- Automatically accept additional image formats supported by the browser
 - Hough Circle Transform implementation (no OpenCV dependency)
 - Preserve and display raw 16-bit pixel values
 - Adjustable detection parameters
@@ -92,5 +93,12 @@ circle-detector/
 ## Supported Formats
 
 - TIFF (.tif, .tiff) - 8-bit and 16-bit
-- PNG (.png)
-- JPEG (.jpg, .jpeg)
+- PNG and APNG (.png, .apng)
+- JPEG and JFIF (.jpg, .jpeg, .jfif)
+- Bitmap (.bmp, .dib)
+- GIF (.gif)
+- WebP (.webp)
+- AVIF (.avif)
+- HEIC and HEIF (.heic, .heif)
+- ICO (.ico)
+- Other image MIME types when the browser has a native decoder
